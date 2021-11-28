@@ -58,6 +58,7 @@ typedef struct _thread_info {
 	 * bit9:   int/float      (0x20) - dup -- 0x03
 	 * bit10:  little/big endian  (0x40)
 	 */
+         char** client_name;
 } jack_thread_info_t;
 
 #define IS_FMTFLT ((info->format&0x20))
@@ -185,7 +186,7 @@ int process (jack_nframes_t nframes, void *arg) {
 		/* count underruns */
 		if (info->can_capture && rbrs < bytes_per_frame * nframes) {
 			underruns++;
-		  fprintf(stderr,"underrun..\n");
+			fprintf(stderr,"%s: underrun..\n", *info->client_name);
 		}
 		return 0;
 	}
@@ -273,10 +274,10 @@ void setup_ports (int nports, char *source_names[], jack_thread_info_t *info) {
 	for (i = 0; i < nports; i++) {
 		char name[64];
 
-		sprintf(name, "input%d", i+1);
+		sprintf(name, "output%d", i+1);
 
 		if ((ports[i] = jack_port_register(info->client, name, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0)) == 0) {
-			fprintf(stderr, "cannot register input port \"%s\"!\n", name);
+			fprintf(stderr, "cannot register output port \"%s\"!\n", name);
 			jack_client_close(info->client);
 			exit(1);
 		}
@@ -284,7 +285,7 @@ void setup_ports (int nports, char *source_names[], jack_thread_info_t *info) {
 
 	for (i = 0; i < nports; i++) {
 		if (jack_connect(info->client, jack_port_name(ports[i]), source_names[i])) {
-			fprintf(stderr, "cannot connect input port %s to %s\n", jack_port_name(ports[i]), source_names[i]);
+			fprintf(stderr, "cannot connect output port %s to %s\n", jack_port_name(ports[i]), source_names[i]);
 #if 0 /* not fatal - connect manually */
 			jack_client_close(info->client);
 			exit(1);
@@ -352,6 +353,7 @@ int main (int argc, char **argv) {
 	thread_info.format = 0;
 	thread_info.prebuffer = 50.0;
 	thread_info.readfd = fileno(stdin);
+	thread_info.client_name = &client_name;
 
 	const char *optstring = "d:e:b:S:f:p:n:BLhq";
 	struct option long_options[] = {
